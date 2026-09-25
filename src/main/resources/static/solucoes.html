@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soluções</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085;
+    --border: #e1e4ea; --accent: #3b5bdb; --accent-text: #ffffff;
+    --danger: #c92a2a; --code-bg: #f1f3f5;
+    --create: #2b8a3e; --modify: #1971c2; --delete: #c92a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151c; --panel: #1b1f29; --text: #e6e8ee; --muted: #98a1b3;
+      --border: #2c3240; --accent: #748ffc; --accent-text: #0d1020;
+      --danger: #ff8787; --code-bg: #141821;
+      --create: #69db7c; --modify: #74c0fc; --delete: #ff8787;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 20px; padding: 14px 16px; border-bottom: 1px solid var(--border);
+           background: var(--panel); flex-wrap: wrap; }
+  header .brand { font-size: 18px; font-weight: 600; margin: 0; }
+  nav { display: flex; gap: 4px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 5px 12px; border-radius: 7px; }
+  nav a.active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-weight: 500; }
+  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; max-width: 1400px;
+            margin: 0 auto; padding: 18px 16px 64px; }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  section, aside { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-width: 0; }
+  aside { align-self: start; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  h3 { font-size: 14px; margin: 20px 0 8px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+           border-radius: 7px; padding: 8px 10px; width: 100%; }
+  button { font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+           border-radius: 7px; padding: 7px 13px; cursor: pointer; white-space: nowrap; }
+  button.danger { color: var(--danger); }
+  button.small { padding: 3px 9px; font-size: 13px; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .muted { color: var(--muted); }
+  .error { color: var(--danger); }
+
+  .history { list-style: none; margin: 12px 0 0; padding: 0; }
+  .history li { padding: 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .history li:hover { background: var(--bg); }
+  .history li.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .history .title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history .meta { font-size: 12.5px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+
+  .badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px;
+           border: 1px solid currentColor; line-height: 18px; }
+  .badge.CREATE { color: var(--create); }
+  .badge.MODIFY { color: var(--modify); }
+  .badge.DELETE { color: var(--delete); }
+
+  .detail-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: start; }
+  .detail-head h2 { font-size: 19px; margin: 0 0 6px; }
+  .facts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .request { white-space: pre-wrap; background: var(--bg); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .markdown { overflow-wrap: anywhere; }
+  .markdown pre { background: var(--code-bg); padding: 10px; border-radius: 7px; overflow-x: auto; }
+  .markdown code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .markdown :not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+
+  .file { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .file > summary { display: flex; gap: 10px; align-items: center; padding: 9px 12px; cursor: pointer; list-style: none;
+                    background: var(--bg); flex-wrap: wrap; }
+  .file > summary::-webkit-details-marker { display: none; }
+  .file .path { font-family: ui-monospace, Consolas, monospace; font-size: 13px; word-break: break-all; flex: 1 1 240px; }
+  .file .desc { padding: 8px 12px 0; font-size: 13.5px; color: var(--muted); }
+  .file pre { margin: 8px 0 0; background: var(--code-bg); padding: 12px; overflow-x: auto; max-height: 520px;
+              font: 12.5px/1.5 ui-monospace, Consolas, monospace; tab-size: 4; }
+
+  .howto { max-width: 680px; }
+  .howto ol { padding-left: 20px; }
+  .howto li { margin-bottom: 8px; }
+  .example { background: var(--code-bg); border-radius: 8px; padding: 10px 12px; font-family: ui-monospace, Consolas, monospace;
+             font-size: 13px; white-space: pre-wrap; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+           padding: 8px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <p class="brand">Contexto de Projetos</p>
+  <nav><a href="/">Projetos</a><a href="/solucoes.html" class="active">Soluções</a></nav>
+</header>
+
+<div class="layout">
+  <aside>
+    <label>Filtrar por projeto
+      <select id="filter-project"><option value="">Todos os projetos</option></select>
+    </label>
+    <ul id="history" class="history"></ul>
+  </aside>
+
+  <section id="panel"></section>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const API = '/api/v1';
+const state = { projects: [], selectedId: null, current: null };
+
+const $ = id => document.getElementById(id);
+const escapeHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const formatDate = d => d ? new Date(d + 'Z').toLocaleString('pt-BR') : '—';
+const ACTION_LABEL = { CREATE: 'Criar', MODIFY: 'Alterar', DELETE: 'Remover' };
+
+async function request(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || `Erro ${response.status}`);
+  }
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+function toast(message) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+async function copyText(text, label) {
+  await navigator.clipboard.writeText(text);
+  toast(`${label} copiado`);
+}
+
+function downloadText(text, fileName) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parse(text));
+  return `<pre>${escapeHtml(text)}</pre>`;
+}
+
+// ---------- Histórico ----------
+
+async function loadProjects() {
+  state.projects = await request(`${API}/projects`);
+  $('filter-project').innerHTML = '<option value="">Todos os projetos</option>'
+    + state.projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+}
+
+async function loadHistory() {
+  const projectId = $('filter-project').value;
+  const items = await request(`${API}/solutions${projectId ? `?projectId=${projectId}` : ''}`);
+  $('history').innerHTML = items.length ? items.map(s => `
+    <li data-id="${s.id}" class="${s.id === state.selectedId ? 'selected' : ''}">
+      <div class="title">${escapeHtml(s.title)}</div>
+      <div class="meta">
+        <span>#${s.id}</span>
+        <span>${escapeHtml(s.projectName)}</span>
+        <span>${s.fileCount} arquivo${s.fileCount === 1 ? '' : 's'}</span>
+        <span>${formatDate(s.createdAt)}</span>
+      </div>
+    </li>`).join('') : '<li class="muted" style="cursor:default">Nenhuma solução ainda.</li>';
+}
+
+$('history').addEventListener('click', e => {
+  const li = e.target.closest('li[data-id]');
+  if (li) openSolution(Number(li.dataset.id));
+});
+$('filter-project').addEventListener('change', () => loadHistory().catch(showPanelError));
+
+// ---------- Como pedir ----------
+
+function showHowTo() {
+  state.selectedId = null;
+  state.current = null;
+  history.replaceState(null, '', location.pathname + location.search);
+  document.querySelectorAll('#history li').forEach(li => li.classList.remove('selected'));
+  const example = state.projects.length ? state.projects[0].name : 'meu-projeto';
+  $('panel').innerHTML = `
+    <div class="howto">
+      <h2>Como pedir uma solução</h2>
+      <ol>
+        <li>Abra o <strong>Claude Code</strong> na pasta <code>C:\\Projetos\\projeto-contexto</code>, com esta aplicação rodando.</li>
+        <li>Diga o projeto e o que você precisa, por exemplo:
+          <div class="example">No ${escapeHtml(example)}, crie um endpoint para exportar os registros do mês em CSV.</div></li>
+        <li>O Claude lê o contexto do projeto, gera a solução e salva aqui. Ela aparece no histórico ao lado.</li>
+        <li>Para ajustar uma solução, peça citando o número dela, por exemplo: <em>“na solução #3, use paginação”</em>.</li>
+      </ol>
+      <p class="muted">Selecione uma solução no histórico para ver o resumo e copiar os arquivos.</p>
+    </div>`;
+}
+
+// ---------- Detalhe ----------
+
+async function openSolution(id) {
+  try {
+    renderSolution(await request(`${API}/solutions/${id}`));
+  } catch (err) {
+    showPanelError(err);
+  }
+}
+
+function renderSolution(s) {
+  state.selectedId = s.id;
+  state.current = s;
+  history.replaceState(null, '', `#${s.id}`);
+  document.querySelectorAll('#history li').forEach(li =>
+    li.classList.toggle('selected', Number(li.dataset.id) === s.id));
+
+  const filters = [];
+  if (s.contextExtensions) filters.push(`extensões: ${escapeHtml(s.contextExtensions)}`);
+  if (s.contextQuery) filters.push(`busca: “${escapeHtml(s.contextQuery)}”`);
+
+  const files = s.files.map((f, i) => `
+    <details class="file" ${i < 3 ? 'open' : ''}>
+      <summary>
+        <span class="badge ${f.action}">${ACTION_LABEL[f.action]}</span>
+        <span class="path">${escapeHtml(f.path)}</span>
+        <span class="toolbar">
+          ${f.action !== 'DELETE' ? `<button class="small" data-copy="${i}">Copiar</button>
+          <button class="small" data-download="${i}">Baixar</button>` : ''}
+          <button class="small" data-copy-path="${i}">Copiar caminho</button>
+        </span>
+      </summary>
+      ${f.description ? `<div class="desc">${escapeHtml(f.description)}</div>` : ''}
+      ${f.action !== 'DELETE' ? `<pre><code>${escapeHtml(f.content)}</code></pre>`
+        : '<p class="muted" style="padding:0 12px">Remover este arquivo do projeto.</p>'}
+    </details>`).join('');
+
+  $('panel').innerHTML = `
+    <div class="detail-head">
+      <div>
+        <h2>${escapeHtml(s.title)}</h2>
+        <div class="facts">
+          <span>#${s.id}</span>
+          <span>Projeto: ${escapeHtml(s.projectName)}</span>
+          <span>${formatDate(s.createdAt)}</span>
+          ${s.updatedAt && s.updatedAt !== s.createdAt ? `<span>atualizada ${formatDate(s.updatedAt)}</span>` : ''}
+          ${s.model ? `<span>${escapeHtml(s.model)}</span>` : ''}
+        </div>
+      </div>
+      <div class="toolbar">
+        ${s.files.length ? '<button data-act="zip">Baixar ZIP</button>' : ''}
+        <button data-act="delete" class="danger">Excluir</button>
+      </div>
+    </div>
+
+    <h3>Pedido</h3>
+    <div class="request">${escapeHtml(s.request)}</div>
+    ${filters.length ? `<p class="muted" style="font-size:13px;margin:6px 0 0">Contexto: ${filters.join(' · ')}</p>` : ''}
+
+    <h3>Solução</h3>
+    <div class="markdown">${renderMarkdown(s.summary)}</div>
+
+    <h3>Arquivos (${s.files.length})</h3>
+    ${s.files.length ? files : '<p class="muted">Nenhum arquivo alterado: a resposta está no resumo acima.</p>'}`;
+}
+
+$('panel').addEventListener('click', async e => {
+  const button = e.target.closest('button');
+  if (!button || !state.current) return;
+  const s = state.current;
+  const file = i => s.files[Number(i)];
+
+  // Botões dentro do <summary> não devem abrir/fechar o arquivo.
+  if (button.closest('summary')) e.preventDefault();
+
+  try {
+    if (button.dataset.copy) return await copyText(file(button.dataset.copy).content, 'Arquivo');
+    if (button.dataset.copyPath) return await copyText(file(button.dataset.copyPath).path, 'Caminho');
+    if (button.dataset.download) {
+      const f = file(button.dataset.download);
+      return downloadText(f.content, f.path.split('/').pop());
+    }
+    if (button.dataset.act === 'zip') {
+      window.location.href = `${API}/solutions/${s.id}/zip`;
+    } else if (button.dataset.act === 'delete') {
+      if (!confirm(`Excluir a solução "${s.title}"?`)) return;
+      await request(`${API}/solutions/${s.id}`, { method: 'DELETE' });
+      await loadHistory();
+      showHowTo();
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+function showPanelError(err) {
+  $('panel').innerHTML = `<p class="error">${escapeHtml(err.message)}</p>`;
+}
+
+// ---------- Início ----------
+
+(async function init() {
+  try {
+    await loadProjects();
+    const projectId = new URLSearchParams(location.search).get('projectId');
+    if (projectId) $('filter-project').value = projectId;
+    await loadHistory();
+    const hashId = Number(location.hash.slice(1));
+    if (hashId) openSolution(hashId);
+    else showHowTo();
+  } catch (err) {
+    showPanelError(err);
+  }
+})();
+</script>
+</body>
+</html>

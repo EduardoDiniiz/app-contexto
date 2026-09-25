@@ -81,7 +81,8 @@ public class ProjectService {
         return projectMapper.toScanResultDTO(saved, result, durationMs);
     }
 
-    private Project findEntity(Long id) {
+    @Transactional(readOnly = true)
+    public Project findEntity(Long id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, id));
     }

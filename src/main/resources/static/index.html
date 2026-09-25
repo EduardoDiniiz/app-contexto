@@ -21,6 +21,12 @@
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
   main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: center; gap: 20px; padding: 14px 16px; border-bottom: 1px solid var(--border);
+           background: var(--panel); flex-wrap: wrap; }
+  header .brand { font-size: 18px; font-weight: 600; margin: 0; }
+  nav { display: flex; gap: 4px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 5px 12px; border-radius: 7px; }
+  nav a.active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-weight: 500; }
   h1 { font-size: 22px; margin: 0 0 4px; }
   h2 { font-size: 16px; margin: 0 0 12px; }
   p.lead { color: var(--muted); margin: 0 0 24px; }
@@ -57,8 +63,12 @@
 </style>
 </head>
 <body>
+<header>
+  <p class="brand">Contexto de Projetos</p>
+  <nav><a href="/" class="active">Projetos</a><a href="/solucoes.html">Soluções</a></nav>
+</header>
 <main>
-  <h1>Contexto de Projetos</h1>
+  <h1>Projetos indexados</h1>
   <p class="lead">Informe o caminho de um projeto. Os arquivos de texto são indexados no PostgreSQL e podem ser exportados como contexto para o Claude.</p>
 
   <section>
@@ -166,6 +176,7 @@ async function loadProjects() {
       <td>${formatBytes(p.totalBytes)}</td>
       <td>${formatDate(p.lastScannedAt)}</td>
       <td class="actions">
+        <a href="/solucoes.html?projectId=${p.id}"><button class="primary" type="button">Soluções</button></a>
         <button data-action="open">Contexto</button>
         <button data-action="rescan">Reescanear</button>
         <button data-action="delete" class="danger">Excluir</button>
@@ -203,7 +214,7 @@ $('scan-form').addEventListener('submit', e => {
 });
 
 $('projects').addEventListener('click', e => {
-  const button = e.target.closest('button');
+  const button = e.target.closest('button[data-action]');
   if (!button) return;
   const id = Number(button.closest('tr').dataset.id);
   const project = $('projects')._projects[id];
