@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: contexto-postgres
+    environment:
+      POSTGRES_DB: contexto
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - contexto-data:/var/lib/postgresql/data
+
+volumes:
+  contexto-data:

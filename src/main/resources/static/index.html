@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contexto de Projetos</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085;
+    --border: #e1e4ea; --accent: #3b5bdb; --accent-text: #ffffff;
+    --danger: #c92a2a; --ok: #2b8a3e; --code-bg: #f1f3f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151c; --panel: #1b1f29; --text: #e6e8ee; --muted: #98a1b3;
+      --border: #2c3240; --accent: #748ffc; --accent-text: #0d1020;
+      --danger: #ff8787; --ok: #69db7c; --code-bg: #141821;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+            padding: 18px; margin-bottom: 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1 1 200px; }
+  label.grow { flex: 3 1 320px; }
+  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+                  border-radius: 7px; padding: 8px 10px; min-width: 0; }
+  button { font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+           border-radius: 7px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: .55; cursor: progress; }
+  .status { margin-top: 10px; font-size: 14px; min-height: 21px; }
+  .status.error { color: var(--danger); }
+  .status.ok { color: var(--ok); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  td.path { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; word-break: break-all; }
+  td.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  tr.selected td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  textarea { width: 100%; min-height: 320px; margin-top: 12px; font: 12.5px/1.45 ui-monospace, Consolas, monospace;
+             color: var(--text); background: var(--code-bg); border: 1px solid var(--border); border-radius: 7px; padding: 10px; }
+  .hits { list-style: none; padding: 0; margin: 12px 0 0; }
+  .hits li { border-bottom: 1px solid var(--border); padding: 8px 0; }
+  .hits code { font-size: 13px; }
+  .hits .snippet { color: var(--muted); font-size: 13px; }
+  .hits b { color: var(--text); background: color-mix(in srgb, var(--accent) 25%, transparent); font-weight: 600; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Contexto de Projetos</h1>
+  <p class="lead">Informe o caminho de um projeto. Os arquivos de texto são indexados no PostgreSQL e podem ser exportados como contexto para o Claude.</p>
+
+  <section>
+    <h2>Escanear projeto</h2>
+    <form id="scan-form" class="row">
+      <label class="grow">Caminho absoluto
+        <input id="scan-path" required placeholder="C:\Projetos\meu-projeto">
+      </label>
+      <label>Nome (opcional)
+        <input id="scan-name" placeholder="nome da pasta">
+      </label>
+      <button class="primary" type="submit">Escanear</button>
+    </form>
+    <div id="scan-status" class="status"></div>
+  </section>
+
+  <section>
+    <h2>Projetos indexados</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Caminho</th><th>Arquivos</th><th>Tamanho</th><th>Último scan</th><th></th></tr></thead>
+        <tbody id="projects"><tr><td colspan="6" class="muted">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="workspace" hidden>
+    <h2>Contexto de <span id="ws-name"></span></h2>
+    <form id="context-form" class="row">
+      <label>Extensões (vírgula)
+        <input id="ctx-ext" placeholder="java,yml,sql">
+      </label>
+      <label>Filtrar por busca
+        <input id="ctx-q" placeholder="ex.: pagamento pix">
+      </label>
+      <label>Máx. caracteres
+        <input id="ctx-max" type="number" min="5000" max="4000000" step="1000" value="400000">
+      </label>
+      <button class="primary" type="submit">Gerar contexto</button>
+      <button type="button" id="ctx-copy">Copiar</button>
+      <button type="button" id="ctx-download">Baixar</button>
+    </form>
+    <div id="ctx-status" class="status"></div>
+    <textarea id="ctx-output" readonly placeholder="O contexto gerado aparece aqui."></textarea>
+
+    <h2 style="margin-top:22px">Buscar nos arquivos</h2>
+    <form id="search-form" class="row">
+      <label class="grow">Termos
+        <input id="search-q" required placeholder="ex.: UserService or &quot;findByEmail&quot;">
+      </label>
+      <button type="submit">Buscar</button>
+    </form>
+    <ul id="hits" class="hits"></ul>
+  </section>
+</main>
+
+<script>
+const API = '/api/v1/projects';
+let current = null;
+
+const $ = id => document.getElementById(id);
+
+async function request(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || `Erro ${response.status}`);
+  }
+  if (response.status === 204) return null;
+  const type = response.headers.get('content-type') || '';
+  return type.includes('application/json') ? response.json() : response.text();
+}
+
+function setStatus(el, message, kind = '') {
+  el.textContent = message;
+  el.className = 'status ' + kind;
+}
+
+async function withBusy(button, action) {
+  button.disabled = true;
+  try { await action(); } finally { button.disabled = false; }
+}
+
+const formatBytes = b => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
+const formatDate = d => d ? new Date(d + 'Z').toLocaleString('pt-BR') : '—';
+const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function describeScan(r) {
+  return `${r.project.name}: ${r.added} novos, ${r.updated} alterados, ${r.removed} removidos, `
+       + `${r.unchanged} sem mudança, ${r.skipped} ignorados (${r.durationMs} ms).`;
+}
+
+async function loadProjects() {
+  const projects = await request(API);
+  const tbody = $('projects');
+  if (!projects.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Nenhum projeto indexado ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = projects.map(p => `
+    <tr data-id="${p.id}" class="${current && current.id === p.id ? 'selected' : ''}">
+      <td>${escapeHtml(p.name)}</td>
+      <td class="path">${escapeHtml(p.rootPath)}</td>
+      <td>${p.fileCount}</td>
+      <td>${formatBytes(p.totalBytes)}</td>
+      <td>${formatDate(p.lastScannedAt)}</td>
+      <td class="actions">
+        <button data-action="open">Contexto</button>
+        <button data-action="rescan">Reescanear</button>
+        <button data-action="delete" class="danger">Excluir</button>
+      </td>
+    </tr>`).join('');
+  tbody._projects = Object.fromEntries(projects.map(p => [p.id, p]));
+}
+
+function openWorkspace(project) {
+  current = project;
+  $('ws-name').textContent = project.name;
+  $('workspace').hidden = false;
+  $('ctx-output').value = '';
+  $('hits').innerHTML = '';
+  setStatus($('ctx-status'), '');
+  document.querySelectorAll('#projects tr').forEach(tr =>
+    tr.classList.toggle('selected', Number(tr.dataset.id) === project.id));
+  $('workspace').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('scan-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const button = e.submitter;
+  setStatus($('scan-status'), 'Escaneando… projetos grandes podem levar alguns segundos.');
+  withBusy(button, async () => {
+    try {
+      const body = JSON.stringify({ path: $('scan-path').value, name: $('scan-name').value || null });
+      const result = await request(`${API}/scan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      setStatus($('scan-status'), describeScan(result), 'ok');
+      await loadProjects();
+    } catch (err) {
+      setStatus($('scan-status'), err.message, 'error');
+    }
+  });
+});
+
+$('projects').addEventListener('click', e => {
+  const button = e.target.closest('button');
+  if (!button) return;
+  const id = Number(button.closest('tr').dataset.id);
+  const project = $('projects')._projects[id];
+  const action = button.dataset.action;
+
+  if (action === 'open') return openWorkspace(project);
+
+  withBusy(button, async () => {
+    try {
+      if (action === 'rescan') {
+        const result = await request(`${API}/${id}/rescan`, { method: 'POST' });
+        setStatus($('scan-status'), describeScan(result), 'ok');
+      } else if (action === 'delete') {
+        if (!confirm(`Excluir o índice de "${project.name}"? Os arquivos no disco não são afetados.`)) return;
+        await request(`${API}/${id}`, { method: 'DELETE' });
+        if (current && current.id === id) { current = null; $('workspace').hidden = true; }
+      }
+      await loadProjects();
+    } catch (err) {
+      setStatus($('scan-status'), err.message, 'error');
+    }
+  });
+});
+
+$('context-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const params = new URLSearchParams({ maxChars: $('ctx-max').value });
+  const extensions = $('ctx-ext').value.trim();
+  const query = $('ctx-q').value.trim();
+  if (extensions) params.set('extensions', extensions);
+  if (query) params.set('q', query);
+
+  withBusy(e.submitter, async () => {
+    try {
+      const text = await request(`${API}/${current.id}/context?${params}`);
+      $('ctx-output').value = text;
+      const omitted = text.match(/<omitted_files[^>]*count="(\d+)"/);
+      setStatus($('ctx-status'),
+        `${text.length.toLocaleString('pt-BR')} caracteres (~${Math.round(text.length / 4).toLocaleString('pt-BR')} tokens)`
+        + (omitted ? ` · ${omitted[1]} arquivos omitidos pelo limite` : ''), 'ok');
+    } catch (err) {
+      setStatus($('ctx-status'), err.message, 'error');
+    }
+  });
+});
+
+$('ctx-copy').addEventListener('click', async () => {
+  const text = $('ctx-output').value;
+  if (!text) return;
+  await navigator.clipboard.writeText(text);
+  setStatus($('ctx-status'), 'Contexto copiado para a área de transferência.', 'ok');
+});
+
+$('ctx-download').addEventListener('click', () => {
+  const text = $('ctx-output').value;
+  if (!text) return;
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  link.download = `contexto-${current.name}.txt`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
+$('search-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const params = new URLSearchParams({ q: $('search-q').value });
+  withBusy(e.submitter, async () => {
+    try {
+      const hits = await request(`${API}/${current.id}/files/search?${params}`);
+      // ts_headline marca os termos com <b>; o resto do trecho é escapado.
+      $('hits').innerHTML = hits.length ? hits.map(h => `
+        <li><code>${escapeHtml(h.relativePath)}</code> <span class="muted">${h.language}</span>
+        <div class="snippet">${escapeHtml(h.snippet || '').replace(/&lt;(\/?)b&gt;/g, '<$1b>')}</div></li>`).join('')
+        : '<li class="muted">Nenhum resultado.</li>';
+    } catch (err) {
+      $('hits').innerHTML = `<li class="status error">${escapeHtml(err.message)}</li>`;
+    }
+  });
+});
+
+loadProjects().catch(err => {
+  $('projects').innerHTML = `<tr><td colspan="6" class="status error">${escapeHtml(err.message)}</td></tr>`;
+});
+</script>
+</body>
+</html>

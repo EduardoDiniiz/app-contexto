@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: projeto-contexto
+  profiles:
+    default: local
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+    time-zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+  # A API lê arquivos do disco: por padrão só aceita conexões da própria máquina.
+  address: 127.0.0.1
+
+contexto:
+  scanner:
+    max-file-size-bytes: 524288
+    ignored-directories:
+      - .git
+      - .svn
+      - .hg
+      - .idea
+      - .vscode
+      - .gradle
+      - .mvn
+      - .next
+      - .nuxt
+      - .venv
+      - venv
+      - __pycache__
+      - node_modules
+      - bower_components
+      - vendor
+      - target
+      - build
+      - dist
+      - out
+      - bin
+      - obj
+      - coverage
+    ignored-extensions:
+      - class
+      - jar
+      - war
+      - ear
+      - zip
+      - gz
+      - tar
+      - rar
+      - 7z
+      - exe
+      - dll
+      - so
+      - dylib
+      - pdb
+      - png
+      - jpg
+      - jpeg
+      - gif
+      - bmp
+      - ico
+      - webp
+      - svg
+      - pdf
+      - mp3
+      - mp4
+      - avi
+      - mov
+      - woff
+      - woff2
+      - ttf
+      - eot
+      - db
+      - sqlite
+      - log
+      - map
+    ignored-file-globs:
+      - ".env*"
+      - "*.min.js"
+      - "*.min.css"
+      - "*.pem"
+      - "*.key"
+      - "*.p12"
+      - "*.jks"
+      - package-lock.json
+      - yarn.lock
+      - pnpm-lock.yaml
