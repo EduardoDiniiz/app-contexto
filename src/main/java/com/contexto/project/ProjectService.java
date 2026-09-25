@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,11 +31,11 @@ public class ProjectService {
     /** Escaneia o diretório: cria o projeto se for novo, ou sincroniza se o caminho já estiver indexado. */
     @Transactional
     public ScanResultDTO scan(ScanRequestDTO dto) {
-        Path root = resolveDirectory(dto.path());
+        Path root = resolveDirectory(dto.getPath());
         Project project = projectRepository.findByRootPath(root.toString())
                 .orElseGet(() -> projectRepository.save(newProject(root)));
-        if (dto.name() != null && !dto.name().isBlank()) {
-            project.setName(dto.name().trim());
+        if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
+            project.setName(dto.getName().trim());
         }
         return synchronize(project);
     }
@@ -49,7 +51,7 @@ public class ProjectService {
     public List<ProjectResponseDTO> findAll() {
         return projectRepository.findAll().stream()
                 .map(projectMapper::toResponseDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -73,7 +75,7 @@ public class ProjectService {
     private ScanResultDTO synchronize(Project project) {
         long start = System.nanoTime();
         SyncResult result = scanService.synchronize(project);
-        project.registerScan(result.totalFiles(), result.totalBytes());
+        project.registerScan(result.getTotalFiles(), result.getTotalBytes());
         Project saved = projectRepository.save(project);
         long durationMs = (System.nanoTime() - start) / 1_000_000;
         return projectMapper.toScanResultDTO(saved, result, durationMs);
@@ -94,7 +96,7 @@ public class ProjectService {
 
     private Path resolveDirectory(String rawPath) {
         try {
-            Path path = Path.of(rawPath.trim());
+            Path path = Paths.get(rawPath.trim());
             if (!path.isAbsolute() || !Files.isDirectory(path)) {
                 throw new BusinessException("Caminho não é um diretório absoluto existente: " + rawPath);
             }

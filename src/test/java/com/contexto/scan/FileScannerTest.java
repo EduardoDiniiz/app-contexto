@@ -7,8 +7,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +28,10 @@ class FileScannerTest {
     @BeforeEach
     void setUp() {
         ScannerProperties properties = new ScannerProperties(
-                1024, Set.of("node_modules", ".git"), Set.of("png"), List.of(".env*", "*.min.js"));
+                1024,
+                new HashSet<>(Arrays.asList("node_modules", ".git")),
+                new HashSet<>(Collections.singletonList("png")),
+                Arrays.asList(".env*", "*.min.js"));
         scanner = new FileScanner(properties, new LanguageResolver());
     }
 
@@ -37,11 +42,11 @@ class FileScannerTest {
         List<ScannedFile> files = scan();
 
         assertThat(files).singleElement().satisfies(file -> {
-            assertThat(file.relativePath()).isEqualTo("src/main/App.java");
-            assertThat(file.extension()).isEqualTo("java");
-            assertThat(file.language()).isEqualTo("java");
-            assertThat(file.content()).isEqualTo("class App {}");
-            assertThat(file.contentHash()).hasSize(64);
+            assertThat(file.getRelativePath()).isEqualTo("src/main/App.java");
+            assertThat(file.getExtension()).isEqualTo("java");
+            assertThat(file.getLanguage()).isEqualTo("java");
+            assertThat(file.getContent()).isEqualTo("class App {}");
+            assertThat(file.getContentHash()).hasSize(64);
         });
     }
 
@@ -53,13 +58,13 @@ class FileScannerTest {
         write("image.png", "x");
         write(".env.local", "SECRET=1");
         write("app.min.js", "x");
-        write("big.txt", "a".repeat(2048));
+        write("big.txt", String.join("", Collections.nCopies(2048, "a")));
         Files.write(root.resolve("data.bin"), new byte[] {1, 0, 2});
 
         List<ScannedFile> files = new ArrayList<>();
         int skipped = scanner.scan(root, files::add);
 
-        assertThat(files).extracting(ScannedFile::relativePath).containsExactly("keep.md");
+        assertThat(files).extracting(ScannedFile::getRelativePath).containsExactly("keep.md");
         assertThat(skipped).isEqualTo(5);
     }
 
@@ -70,7 +75,7 @@ class FileScannerTest {
 
         List<ScannedFile> files = scan();
 
-        assertThat(files).extracting(ScannedFile::content).containsExactlyInAnyOrder("ação", "conteúdo");
+        assertThat(files).extracting(ScannedFile::getContent).containsExactlyInAnyOrder("ação", "conteúdo");
     }
 
     @Test
@@ -78,8 +83,8 @@ class FileScannerTest {
         write("Dockerfile", "FROM alpine");
 
         assertThat(scan()).singleElement().satisfies(file -> {
-            assertThat(file.extension()).isNull();
-            assertThat(file.language()).isEqualTo("dockerfile");
+            assertThat(file.getExtension()).isNull();
+            assertThat(file.getLanguage()).isEqualTo("dockerfile");
         });
     }
 
@@ -92,6 +97,6 @@ class FileScannerTest {
     private void write(String relativePath, String content) throws IOException {
         Path file = root.resolve(relativePath);
         Files.createDirectories(file.getParent());
-        Files.writeString(file, content, StandardCharsets.UTF_8);
+        Files.write(file, content.getBytes(StandardCharsets.UTF_8));
     }
 }

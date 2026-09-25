@@ -1,3 +1,11 @@
 package com.contexto.file;
 
-public record FileContent(Long id, String relativePath, String language, String content) {}
+import lombok.Value;
+
+@Value
+public class FileContent {
+    Long id;
+    String relativePath;
+    String language;
+    String content;
+}

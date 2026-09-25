@@ -1,11 +1,13 @@
 package com.contexto.scan;
 
-import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import javax.persistence.EntityManager;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +18,6 @@ import com.contexto.file.ProjectFileMapper;
 import com.contexto.file.ProjectFileRepository;
 import com.contexto.project.Project;
 
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,12 +41,12 @@ public class ScanService {
     @Transactional
     public SyncResult synchronize(Project project) {
         Map<String, FileSnapshot> existing = fileRepository.findSnapshotsByProjectId(project.getId()).stream()
-                .collect(Collectors.toMap(FileSnapshot::relativePath, Function.identity()));
+                .collect(Collectors.toMap(FileSnapshot::getRelativePath, Function.identity()));
         Counters counters = new Counters();
 
-        int skipped = fileScanner.scan(Path.of(project.getRootPath()),
-                file -> apply(project, file, existing.remove(file.relativePath()), counters));
-        removeDeleted(existing.values().stream().map(FileSnapshot::id).toList());
+        int skipped = fileScanner.scan(Paths.get(project.getRootPath()),
+                file -> apply(project, file, existing.remove(file.getRelativePath()), counters));
+        removeDeleted(existing.values().stream().map(FileSnapshot::getId).collect(Collectors.toList()));
 
         log.info("Projeto {} sincronizado: +{} ~{} -{} ={} ignorados={}", project.getName(),
                 counters.added, counters.updated, existing.size(), counters.unchanged, skipped);
@@ -57,14 +58,14 @@ public class ScanService {
         if (snapshot == null) {
             fileRepository.save(fileMapper.toEntity(file, project));
             counters.added++;
-        } else if (!snapshot.contentHash().equals(file.contentHash())) {
-            ProjectFile entity = fileRepository.getReferenceById(snapshot.id());
+        } else if (!snapshot.getContentHash().equals(file.getContentHash())) {
+            ProjectFile entity = fileRepository.getReferenceById(snapshot.getId());
             fileMapper.updateEntity(file, entity);
             counters.updated++;
         } else {
             counters.unchanged++;
         }
-        counters.totalBytes += file.sizeBytes();
+        counters.totalBytes += file.getSizeBytes();
         flushPeriodically(counters);
     }
 
@@ -77,11 +78,9 @@ public class ScanService {
     }
 
     private void removeDeleted(List<Long> ids) {
-        List<Long> remaining = new ArrayList<>(ids);
-        while (!remaining.isEmpty()) {
-            List<Long> chunk = remaining.subList(0, Math.min(DELETE_CHUNK_SIZE, remaining.size()));
-            fileRepository.deleteAllByIdInBatch(List.copyOf(chunk));
-            chunk.clear();
+        for (int start = 0; start < ids.size(); start += DELETE_CHUNK_SIZE) {
+            List<Long> chunk = ids.subList(start, Math.min(start + DELETE_CHUNK_SIZE, ids.size()));
+            fileRepository.deleteAllByIdInBatch(new ArrayList<>(chunk));
         }
     }
 

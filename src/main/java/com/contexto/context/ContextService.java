@@ -1,6 +1,7 @@
 package com.contexto.context;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,12 +36,14 @@ public class ContextService {
     public String buildContext(Long projectId, Set<String> extensions, String query, int maxChars) {
         ProjectResponseDTO project = projectService.findById(projectId);
         List<ProjectFileSummaryDTO> files = filterByExtension(fileService.listFiles(projectId), extensions);
-        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        String normalizedQuery = query == null || query.trim().isEmpty() ? null : query.trim();
 
-        String tree = treeRenderer.render(files.stream().map(ProjectFileSummaryDTO::relativePath).toList());
+        String tree = treeRenderer.render(files.stream()
+                .map(ProjectFileSummaryDTO::getRelativePath)
+                .collect(Collectors.toList()));
         ContextDocumentWriter writer = new ContextDocumentWriter(project, tree, normalizedQuery, maxChars);
         List<ProjectFileSummaryDTO> ordered = normalizedQuery == null
-                ? files.stream().sorted(FilePriority.COMPARATOR).toList()
+                ? files.stream().sorted(FilePriority.COMPARATOR).collect(Collectors.toList())
                 : orderBySearch(projectId, normalizedQuery, files);
 
         writeDocuments(writer, ordered);
@@ -55,40 +58,40 @@ public class ContextService {
                 .map(ext -> ext.trim().toLowerCase().replaceFirst("^\\.", ""))
                 .collect(Collectors.toSet());
         return files.stream()
-                .filter(file -> file.extension() != null && normalized.contains(file.extension()))
-                .toList();
+                .filter(file -> file.getExtension() != null && normalized.contains(file.getExtension()))
+                .collect(Collectors.toList());
     }
 
     private List<ProjectFileSummaryDTO> orderBySearch(Long projectId, String query,
             List<ProjectFileSummaryDTO> files) {
         Map<Long, ProjectFileSummaryDTO> byId = files.stream()
-                .collect(Collectors.toMap(ProjectFileSummaryDTO::id, Function.identity()));
+                .collect(Collectors.toMap(ProjectFileSummaryDTO::getId, Function.identity()));
         return fileService.search(projectId, query, SEARCH_LIMIT).stream()
-                .map(FileSearchResultDTO::id)
+                .map(FileSearchResultDTO::getId)
                 .map(byId::get)
                 .filter(Objects::nonNull)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private void writeDocuments(ContextDocumentWriter writer, List<ProjectFileSummaryDTO> ordered) {
         for (int start = 0; start < ordered.size(); start += FETCH_CHUNK_SIZE) {
             List<ProjectFileSummaryDTO> chunk = ordered.subList(start, Math.min(start + FETCH_CHUNK_SIZE, ordered.size()));
             List<Long> toFetch = new ArrayList<>();
-            chunk.forEach(file -> {
-                if (writer.mightFit(file.sizeBytes())) {
-                    toFetch.add(file.id());
+            for (ProjectFileSummaryDTO file : chunk) {
+                if (writer.mightFit(file.getSizeBytes())) {
+                    toFetch.add(file.getId());
                 }
-            });
-            Map<Long, FileContent> contents = toFetch.isEmpty() ? Map.of()
+            }
+            Map<Long, FileContent> contents = toFetch.isEmpty() ? Collections.<Long, FileContent>emptyMap()
                     : fileService.findContents(toFetch).stream()
-                            .collect(Collectors.toMap(FileContent::id, Function.identity()));
-            chunk.forEach(file -> writeOrOmit(writer, file, contents.get(file.id())));
+                            .collect(Collectors.toMap(FileContent::getId, Function.identity()));
+            chunk.forEach(file -> writeOrOmit(writer, file, contents.get(file.getId())));
         }
     }
 
     private void writeOrOmit(ContextDocumentWriter writer, ProjectFileSummaryDTO file, FileContent content) {
         if (content == null) {
-            writer.omit(file.relativePath());
+            writer.omit(file.getRelativePath());
         } else {
             writer.append(content);
         }

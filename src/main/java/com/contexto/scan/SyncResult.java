@@ -1,14 +1,17 @@
 package com.contexto.scan;
 
-public record SyncResult(
-        int added,
-        int updated,
-        int removed,
-        int unchanged,
-        int skipped,
-        long totalBytes
-) {
-    public int totalFiles() {
+import lombok.Value;
+
+@Value
+public class SyncResult {
+    int added;
+    int updated;
+    int removed;
+    int unchanged;
+    int skipped;
+    long totalBytes;
+
+    public int getTotalFiles() {
         return added + updated + unchanged;
     }
 }

@@ -3,14 +3,16 @@ package com.contexto.common.exception;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,19 +39,19 @@ public class GlobalExceptionHandler {
                 .body(new ApiErrorResponse(400, "Erro de validação", errors));
     }
 
-    @ExceptionHandler(HandlerMethodValidationException.class)
-    public ResponseEntity<ApiErrorResponse> handleParameterValidation(HandlerMethodValidationException ex) {
-        String message = ex.getAllErrors().stream()
-                .map(error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Inválido")
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleParameterValidation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining("; "));
         return ResponseEntity.badRequest()
                 .body(new ApiErrorResponse(400, message));
     }
 
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ApiErrorResponse(404, "Recurso não encontrado"));
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ApiErrorResponse(400, "Corpo da requisição inválido (JSON malformado)"));
     }
 
     @ExceptionHandler(Exception.class)

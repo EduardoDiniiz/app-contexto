@@ -35,7 +35,7 @@ final class ContextDocumentWriter {
     void append(FileContent file) {
         String document = renderDocument(documentCount + 1, file);
         if (document.length() > remaining()) {
-            omit(file.relativePath());
+            omit(file.getRelativePath());
             return;
         }
         documents.append(document);
@@ -66,10 +66,10 @@ final class ContextDocumentWriter {
     private static String renderHeader(ProjectResponseDTO project, String fileTree, String query) {
         StringBuilder out = new StringBuilder()
                 .append("<project_context>\n")
-                .append("<project name=\"").append(project.name())
-                .append("\" root=\"").append(project.rootPath())
-                .append("\" files=\"").append(project.fileCount())
-                .append("\" scanned_at=\"").append(project.lastScannedAt()).append("\"/>\n");
+                .append("<project name=\"").append(project.getName())
+                .append("\" root=\"").append(project.getRootPath())
+                .append("\" files=\"").append(project.getFileCount())
+                .append("\" scanned_at=\"").append(project.getLastScannedAt()).append("\"/>\n");
         if (query != null) {
             out.append("<filter query=\"").append(query).append("\"/>\n");
         }
@@ -78,10 +78,10 @@ final class ContextDocumentWriter {
 
     private static String renderDocument(int index, FileContent file) {
         return "<document index=\"" + index + "\">\n"
-                + "<source>" + file.relativePath() + "</source>\n"
-                + "<language>" + file.language() + "</language>\n"
-                + "<document_content>\n" + file.content()
-                + (file.content().endsWith("\n") ? "" : "\n")
+                + "<source>" + file.getRelativePath() + "</source>\n"
+                + "<language>" + file.getLanguage() + "</language>\n"
+                + "<document_content>\n" + file.getContent()
+                + (file.getContent().endsWith("\n") ? "" : "\n")
                 + "</document_content>\n"
                 + "</document>\n";
     }

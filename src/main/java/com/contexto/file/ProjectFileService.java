@@ -2,6 +2,7 @@ package com.contexto.file;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +38,7 @@ public class ProjectFileService {
         projectService.requireExists(projectId);
         return fileRepository.search(projectId, query.trim(), limit).stream()
                 .map(fileMapper::toSearchResultDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

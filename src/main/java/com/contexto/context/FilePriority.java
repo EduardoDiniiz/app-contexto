@@ -1,6 +1,8 @@
 package com.contexto.context;
 
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Set;
 
 import com.contexto.file.ProjectFileSummaryDTO;
@@ -12,22 +14,22 @@ import com.contexto.file.ProjectFileSummaryDTO;
  */
 final class FilePriority {
 
-    private static final Set<String> MANIFESTS = Set.of(
+    private static final Set<String> MANIFESTS = new HashSet<>(Arrays.asList(
             "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "package.json",
             "tsconfig.json", "requirements.txt", "pyproject.toml", "go.mod", "cargo.toml",
             "composer.json", "gemfile", "dockerfile", "docker-compose.yml", "docker-compose.yaml",
-            "claude.md");
+            "claude.md"));
 
-    private static final Set<String> CONFIG_EXTENSIONS = Set.of("yml", "yaml", "properties", "toml", "sql");
+    private static final Set<String> CONFIG_EXTENSIONS = new HashSet<>(Arrays.asList("yml", "yaml", "properties", "toml", "sql"));
 
     static final Comparator<ProjectFileSummaryDTO> COMPARATOR =
-            Comparator.comparingInt(FilePriority::rank).thenComparing(ProjectFileSummaryDTO::relativePath);
+            Comparator.comparingInt(FilePriority::rank).thenComparing(ProjectFileSummaryDTO::getRelativePath);
 
     private FilePriority() {
     }
 
     private static int rank(ProjectFileSummaryDTO file) {
-        String path = file.relativePath().toLowerCase();
+        String path = file.getRelativePath().toLowerCase();
         String name = path.substring(path.lastIndexOf('/') + 1);
         if (name.startsWith("readme")) {
             return 0;
@@ -38,7 +40,7 @@ final class FilePriority {
         if (isTest(path)) {
             return 4;
         }
-        if (file.extension() != null && CONFIG_EXTENSIONS.contains(file.extension())) {
+        if (file.getExtension() != null && CONFIG_EXTENSIONS.contains(file.getExtension())) {
             return 2;
         }
         return 3;

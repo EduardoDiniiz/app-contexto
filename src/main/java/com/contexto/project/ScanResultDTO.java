@@ -1,11 +1,14 @@
 package com.contexto.project;
 
-public record ScanResultDTO(
-        ProjectResponseDTO project,
-        int added,
-        int updated,
-        int removed,
-        int unchanged,
-        int skipped,
-        long durationMs
-) {}
+import lombok.Value;
+
+@Value
+public class ScanResultDTO {
+    ProjectResponseDTO project;
+    int added;
+    int updated;
+    int removed;
+    int unchanged;
+    int skipped;
+    long durationMs;
+}

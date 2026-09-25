@@ -17,10 +17,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -40,14 +40,15 @@ public class FileScanner {
 
     private static final int BINARY_PROBE_BYTES = 8000;
     private static final char BOM = '﻿';
+    private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
 
     private final ScannerProperties properties;
     private final LanguageResolver languageResolver;
 
     public int scan(Path root, Consumer<ScannedFile> consumer) {
-        List<PathMatcher> globs = properties.ignoredFileGlobs().stream()
+        List<PathMatcher> globs = properties.getIgnoredFileGlobs().stream()
                 .map(glob -> FileSystems.getDefault().getPathMatcher("glob:" + glob))
-                .toList();
+                .collect(Collectors.toList());
         ScanVisitor visitor = new ScanVisitor(root, consumer, globs);
         try {
             Files.walkFileTree(root, visitor);
@@ -73,7 +74,7 @@ public class FileScanner {
         @Override
         public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
             boolean ignored = !dir.equals(root)
-                    && properties.ignoredDirectories().contains(dir.getFileName().toString());
+                    && properties.getIgnoredDirectories().contains(dir.getFileName().toString());
             return ignored ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
         }
 
@@ -83,7 +84,11 @@ public class FileScanner {
                 return FileVisitResult.CONTINUE;
             }
             Optional<ScannedFile> scanned = isIgnored(file, attrs) ? Optional.empty() : read(file, attrs);
-            scanned.ifPresentOrElse(consumer, () -> skipped++);
+            if (scanned.isPresent()) {
+                consumer.accept(scanned.get());
+            } else {
+                skipped++;
+            }
             return FileVisitResult.CONTINUE;
         }
 
@@ -97,8 +102,8 @@ public class FileScanner {
         private boolean isIgnored(Path file, BasicFileAttributes attrs) {
             Path fileName = file.getFileName();
             String extension = extensionOf(fileName.toString());
-            return attrs.size() > properties.maxFileSizeBytes()
-                    || (extension != null && properties.ignoredExtensions().contains(extension))
+            return attrs.size() > properties.getMaxFileSizeBytes()
+                    || (extension != null && properties.getIgnoredExtensions().contains(extension))
                     || globs.stream().anyMatch(glob -> glob.matches(fileName));
         }
 
@@ -166,9 +171,18 @@ public class FileScanner {
 
     private static String sha256(byte[] bytes) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+            return toHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 indisponível", e);
         }
+    }
+
+    private static String toHex(byte[] bytes) {
+        char[] out = new char[bytes.length * 2];
+        for (int i = 0; i < bytes.length; i++) {
+            out[i * 2] = HEX_DIGITS[(bytes[i] >> 4) & 0xF];
+            out[i * 2 + 1] = HEX_DIGITS[bytes[i] & 0xF];
+        }
+        return new String(out);
     }
 }

@@ -3,9 +3,6 @@ spring:
     name: projeto-contexto
   profiles:
     default: local
-  threads:
-    virtual:
-      enabled: true
   jpa:
     open-in-view: false
     properties:
